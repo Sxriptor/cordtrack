@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Cord Tracker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0f1e;
+      --surface: #111827;
+      --surface2: #1e293b;
+      --border: #1e3a5f;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --blue: #38bdf8;
+      --green: #22c55e;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --purple: #a78bfa;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 40px;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    header h1 { font-size: 1.1rem; color: var(--blue); letter-spacing: 0.03em; }
+    header span { font-size: 0.75rem; color: var(--muted); }
+
+    .tab-bar {
+      display: flex;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .tab {
+      flex: 1;
+      padding: 12px;
+      text-align: center;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+    .container { max-width: 560px; margin: 0 auto; padding: 16px; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .card-title {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 15px 16px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+      letter-spacing: 0.01em;
+    }
+    .btn:active { opacity: 0.75; transform: scale(0.98); }
+    .btn + .btn { margin-top: 8px; }
+    .btn-blue   { background: #0284c7; color: #fff; }
+    .btn-green  { background: #16a34a; color: #fff; }
+    .btn-amber  { background: #d97706; color: #fff; }
+    .btn-red    { background: #dc2626; color: #fff; }
+    .btn-slate  { background: #334155; color: #cbd5e1; }
+    .btn-purple { background: #7c3aed; color: #fff; }
+    .btn-sm { padding: 8px 14px; font-size: 0.8rem; width: auto; display: inline-block; }
+    .btn-row { display: flex; gap: 8px; }
+    .btn-row .btn { flex: 1; }
+
+    .status-bar {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      margin-bottom: 14px;
+      line-height: 1.4;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .status-bar .icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+    .s-info   { background: #0c2a4a; color: #7dd3fc; border: 1px solid #1e4f7a; }
+    .s-ok     { background: #0a2a15; color: #86efac; border: 1px solid #1a5c30; }
+    .s-warn   { background: #2a1a05; color: #fcd34d; border: 1px solid #5c3a10; }
+    .s-error  { background: #2a0a0a; color: #fca5a5; border: 1px solid #5c1a1a; }
+
+    .point-list { list-style: none; margin-top: 4px; }
+    .point-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 10px;
+      background: var(--surface2);
+      border-radius: 7px;
+      margin-bottom: 5px;
+      font-size: 0.82rem;
+    }
+    .point-item .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot-amber  { background: var(--amber); }
+    .dot-green  { background: var(--green); }
+    .dot-blue   { background: var(--blue); }
+    .dot-purple { background: var(--purple); }
+    .point-label { color: var(--muted); min-width: 70px; font-weight: 600; }
+    .point-coord { color: var(--blue); font-family: 'SF Mono', Menlo, monospace; font-size: 0.78rem; flex: 1; }
+    .point-acc { color: var(--muted); font-size: 0.72rem; flex-shrink: 0; }
+    .rm-btn {
+      background: none; border: none; color: var(--red);
+      cursor: pointer; font-size: 1.1rem; padding: 0 2px; line-height: 1;
+      flex-shrink: 0;
+    }
+
+    canvas {
+      width: 100%;
+      border-radius: 8px;
+      display: block;
+      background: #050d1a;
+      border: 1px solid var(--border);
+    }
+
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 10px;
+      margin-top: 10px;
+      font-size: 0.75rem; color: var(--muted);
+    }
+    .legend-item { display: flex; align-items: center; gap: 5px; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    .history-run {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 10px;
+      background: var(--surface2);
+    }
+    .history-run-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 10px;
+    }
+    .history-run-title { font-size: 0.85rem; font-weight: 600; color: #94a3b8; }
+    .history-run-text {
+      font-family: 'SF Mono', Menlo, monospace;
+      font-size: 0.72rem;
+      color: #4b6278;
+      white-space: pre-wrap;
+      word-break: break-all;
+      line-height: 1.6;
+      background: var(--surface);
+      border-radius: 6px;
+      padding: 10px;
+    }
+
+    .gps-spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid #334155;
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .count-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--surface2);
+      color: var(--blue);
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 6px;
+      margin-left: 6px;
+    }
+
+    #tab-history { display: none; }
+
+    .empty-state {
+      text-align: center;
+      padding: 30px 20px;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.6;
+    }
+    .empty-state .icon { font-size: 2rem; margin-bottom: 8px; display: block; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⚓ Cord Tracker</h1>
+  <span id="header-run-label">New run</span>
+</header>
+
+<nav class="tab-bar">
+  <div class="tab active" id="tab-btn-tracker" onclick="switchTab('tracker')">Track</div>
+  <div class="tab" id="tab-btn-history" onclick="switchTab('history')">History <span class="count-badge" id="hist-count">0</span></div>
+</nav>
+
+<!-- ====== TRACKER TAB ====== -->
+<div id="tab-tracker">
+  <div class="container">
+
+    <div id="status" class="status-bar s-info">
+      <span class="icon">📍</span>
+      <span id="status-text">Stand at your station (short-side corner), then tap <strong>Mark Station</strong>.</span>
+    </div>
+
+    <!-- STATION -->
+    <div class="card">
+      <div class="card-title">1 · Station Position</div>
+      <button class="btn btn-amber" id="btn-station" onclick="markStation()">Mark Station</button>
+      <ul class="point-list" id="station-list"></ul>
+    </div>
+
+    <!-- PASSES -->
+    <div class="card">
+      <div class="card-title">2 · Pass Points <span class="count-badge" id="pass-count">0</span></div>
+      <button class="btn btn-green" onclick="markPass()">+ Mark Pass Point</button>
+      <ul class="point-list" id="pass-list"></ul>
+    </div>
+
+    <!-- POND CORNERS -->
+    <div class="card">
+      <div class="card-title">3 · Pond / Lake Corners (optional) <span class="count-badge" id="corner-count">0</span></div>
+      <button class="btn btn-blue" id="btn-corner" onclick="markCorner()">+ Mark Pond Corner</button>
+      <ul class="point-list" id="corner-list"></ul>
+    </div>
+
+    <!-- MAP -->
+    <div class="card">
+      <div class="card-title">Visualization</div>
+      <canvas id="map" height="280"></canvas>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div> Station</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div> Pass point</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div> Pond corner</div>
+      </div>
+    </div>
+
+    <!-- ACTIONS -->
+    <div class="btn-row">
+      <button class="btn btn-green" onclick="finishRun()">✓ Done &amp; Copy</button>
+      <button class="btn btn-slate" onclick="clearRun()">✕ Clear</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ====== HISTORY TAB ====== -->
+<div id="tab-history">
+  <div class="container">
+    <div class="card">
+      <div class="card-title">Last 2 Saved Runs</div>
+      <div id="history-list"></div>
+    </div>
+    <button class="btn btn-red" onclick="clearHistory()">Clear History</button>
+  </div>
+</div>
+
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+let run = { station: null, passes: [], corners: [] };
+let gpsActive = false;
+
+// ─── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(name) {
+  ['tracker','history'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = t === name ? 'block' : 'none';
+    document.getElementById('tab-btn-' + t).classList.toggle('active', t === name);
+  });
+  if (name === 'history') renderHistory();
+}
+
+// ─── Status helper ─────────────────────────────────────────────────────────────
+function setStatus(html, type = 'info') {
+  const bar = document.getElementById('status');
+  const icons = { info: '📍', ok: '✅', warn: '⚠️', error: '❌' };
+  bar.className = 'status-bar s-' + type;
+  bar.innerHTML = `<span class="icon">${icons[type]}</span><span>${html}</span>`;
+}
+
+function setLoading(msg) {
+  const bar = document.getElementById('status');
+  bar.className = 'status-bar s-info';
+  bar.innerHTML = `<span class="gps-spinner"></span><span>${msg}</span>`;
+}
+
+// ─── GPS ───────────────────────────────────────────────────────────────────────
+function getGPS() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) { reject(new Error('Geolocation not supported on this device.')); return; }
+    if (gpsActive) { reject(new Error('GPS request already in progress.')); return; }
+    gpsActive = true;
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        gpsActive = false;
+        resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude, acc: Math.round(pos.coords.accuracy) });
+      },
+      err => {
+        gpsActive = false;
+        const msgs = ['', 'Location access denied. Check browser permissions.', 'Location unavailable.', 'GPS timed out — try again outside.'];
+        reject(new Error(msgs[err.code] || err.message));
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+    );
+  });
+}
+
+// ─── Mark actions ──────────────────────────────────────────────────────────────
+async function markStation() {
+  setLoading('Getting GPS fix for station…');
+  try {
+    const loc = await getGPS();
+    run.station = loc;
+    renderStation();
+    setStatus(`Station marked. ±${loc.acc}m accuracy. Now walk to the far end and tap <strong>Mark Pass Point</strong>.`, 'ok');
+    drawMap();
+  } catch(e) { setStatus(e.message, 'error'); }
+}
+
+async function markPass() {
+  setLoading(`Getting GPS fix for pass ${run.passes.length + 1}…`);
+  try {
+    const loc = await getGPS();
+    run.passes.push(loc);
+    renderPasses();
+    const n = run.passes.length;
+    const hint = n === 1
+      ? 'First pass marked. Move a few feet and mark the next pass point.'
+      : n % 2 === 0
+        ? `Pass ${n} marked — that completes a lane. Move further and mark the next lane, or tap <strong>Done &amp; Copy</strong>.`
+        : `Pass ${n} marked. Move a few feet and mark the return side.`;
+    setStatus(hint, 'ok');
+    drawMap();
+  } catch(e) { setStatus(e.message, 'error'); }
+}
+
+async function markCorner() {
+  if (run.corners.length >= 4) { setStatus('All 4 pond corners already marked.', 'warn'); return; }
+  const labels = ['NW','NE','SE','SW'];
+  setLoading(`Getting GPS fix for corner ${run.corners.length + 1} (${labels[run.corners.length]})…`);
+  try {
+    const loc = await getGPS();
+    run.corners.push(loc);
+    renderCorners();
+    if (run.corners.length < 4) {
+      setStatus(`Corner ${run.corners.length} (${labels[run.corners.length - 1]}) marked. Walk to the next corner.`, 'ok');
+    } else {
+      setStatus('All 4 pond corners marked!', 'ok');
+      document.getElementById('btn-corner').disabled = true;
+      document.getElementById('btn-corner').style.opacity = '0.4';
+    }
+    drawMap();
+  } catch(e) { setStatus(e.message, 'error'); }
+}
+
+// ─── Render point lists ────────────────────────────────────────────────────────
+function renderStation() {
+  const s = run.station;
+  document.getElementById('station-list').innerHTML = s
+    ? `<li class="point-item">
+         <div class="dot dot-amber"></div>
+         <span class="point-label">Station</span>
+         <span class="point-coord">${s.lat.toFixed(6)}, ${s.lon.toFixed(6)}</span>
+         <span class="point-acc">±${s.acc}m</span>
+         <button class="rm-btn" onclick="removeStation()">✕</button>
+       </li>`
+    : '';
+}
+
+function removeStation() {
+  run.station = null;
+  renderStation();
+  drawMap();
+  setStatus('Station removed. Tap <strong>Mark Station</strong> to set a new one.', 'info');
+}
+
+function renderPasses() {
+  document.getElementById('pass-count').textContent = run.passes.length;
+  document.getElementById('pass-list').innerHTML = run.passes.map((p, i) => `
+    <li class="point-item">
+      <div class="dot dot-green"></div>
+      <span class="point-label">Pass ${i + 1}</span>
+      <span class="point-coord">${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}</span>
+      <span class="point-acc">±${p.acc}m</span>
+      <button class="rm-btn" onclick="removePass(${i})">✕</button>
+    </li>
+  `).join('');
+}
+
+function removePass(i) {
+  run.passes.splice(i, 1);
+  renderPasses();
+  drawMap();
+}
+
+function renderCorners() {
+  const labels = ['NW','NE','SE','SW'];
+  document.getElementById('corner-count').textContent = run.corners.length;
+  document.getElementById('corner-list').innerHTML = run.corners.map((c, i) => `
+    <li class="point-item">
+      <div class="dot dot-blue"></div>
+      <span class="point-label">${labels[i]}</span>
+      <span class="point-coord">${c.lat.toFixed(6)}, ${c.lon.toFixed(6)}</span>
+      <span class="point-acc">±${c.acc}m</span>
+      <button class="rm-btn" onclick="removeCorner(${i})">✕</button>
+    </li>
+  `).join('');
+  if (run.corners.length < 4) {
+    document.getElementById('btn-corner').disabled = false;
+    document.getElementById('btn-corner').style.opacity = '';
+  }
+}
+
+function removeCorner(i) {
+  run.corners.splice(i, 1);
+  renderCorners();
+  document.getElementById('btn-corner').disabled = false;
+  document.getElementById('btn-corner').style.opacity = '';
+  drawMap();
+}
+
+// ─── Map drawing ───────────────────────────────────────────────────────────────
+function drawMap() {
+  const canvas = document.getElementById('map');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.parentElement.clientWidth - 34 || 320;
+  const H = 280;
+  canvas.width = W;
+  canvas.height = H;
+  ctx.clearRect(0, 0, W, H);
+
+  const all = [];
+  if (run.station) all.push(run.station);
+  run.passes.forEach(p => all.push(p));
+  run.corners.forEach(c => all.push(c));
+
+  if (all.length === 0) {
+    ctx.fillStyle = '#1a2a3a';
+    ctx.font = '13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Mark points to see visualization', W / 2, H / 2);
+    return;
+  }
+
+  const PAD = 44;
+
+  let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+  all.forEach(p => {
+    minLat = Math.min(minLat, p.lat); maxLat = Math.max(maxLat, p.lat);
+    minLon = Math.min(minLon, p.lon); maxLon = Math.max(maxLon, p.lon);
+  });
+
+  const dLat = maxLat - minLat || 0.00005;
+  const dLon = maxLon - minLon || 0.00005;
+  const buf = 0.25;
+  const b = {
+    minLat: minLat - dLat * buf, maxLat: maxLat + dLat * buf,
+    minLon: minLon - dLon * buf, maxLon: maxLon + dLon * buf
+  };
+
+  function px(lat, lon) {
+    return {
+      x: PAD + (lon - b.minLon) / (b.maxLon - b.minLon) * (W - PAD * 2),
+      y: PAD + (1 - (lat - b.minLat) / (b.maxLat - b.minLat)) * (H - PAD * 2)
+    };
+  }
+
+  // ── Draw pond polygon ──
+  if (run.corners.length >= 3) {
+    ctx.save();
+    ctx.beginPath();
+    run.corners.forEach((c, i) => {
+      const p = px(c.lat, c.lon);
+      i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+    });
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(14, 116, 144, 0.18)';
+    ctx.fill();
+    ctx.setLineDash([6, 4]);
+    ctx.strokeStyle = '#0891b2';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  // ── Draw cord path ──
+  // Path: station → pass1 → pass2 → pass3 → … (continuous zigzag loop)
+  const pathPts = [];
+  if (run.station) pathPts.push(run.station);
+  run.passes.forEach(p => pathPts.push(p));
+
+  if (pathPts.length >= 2) {
+    ctx.save();
+    ctx.strokeStyle = '#22c55e';
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+
+    // Draw the forward path
+    ctx.beginPath();
+    pathPts.forEach((pt, i) => {
+      const p = px(pt.lat, pt.lon);
+      i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+    });
+    ctx.stroke();
+
+    // If there are passes, draw return line from last pass back to station with dashes
+    if (run.station && run.passes.length > 0) {
+      const last = pathPts[pathPts.length - 1];
+      const st = run.station;
+      const lp = px(last.lat, last.lon);
+      const sp = px(st.lat, st.lon);
+      ctx.setLineDash([5, 5]);
+      ctx.strokeStyle = '#166534';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(lp.x, lp.y);
+      ctx.lineTo(sp.x, sp.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Direction arrows along main path
+      for (let i = 0; i < pathPts.length - 1; i++) {
+        const a = px(pathPts[i].lat, pathPts[i].lon);
+        const bb2 = px(pathPts[i+1].lat, pathPts[i+1].lon);
+        const mx = (a.x + bb2.x) / 2;
+        const my = (a.y + bb2.y) / 2;
+        const angle = Math.atan2(bb2.y - a.y, bb2.x - a.x);
+        ctx.save();
+        ctx.translate(mx, my);
+        ctx.rotate(angle);
+        ctx.fillStyle = '#22c55e';
+        ctx.beginPath();
+        ctx.moveTo(6, 0);
+        ctx.lineTo(-5, 4);
+        ctx.lineTo(-5, -4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+    ctx.restore();
+  }
+
+  // ── Draw pond corner dots ──
+  const cornerColors = ['#38bdf8','#818cf8','#67e8f9','#a5f3fc'];
+  const cornerLabels = ['NW','NE','SE','SW'];
+  run.corners.forEach((c, i) => {
+    const p = px(c.lat, c.lon);
+    ctx.save();
+    ctx.fillStyle = cornerColors[i % cornerColors.length];
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(cornerLabels[i], p.x, p.y - 9);
+    ctx.restore();
+  });
+
+  // ── Draw pass dots ──
+  run.passes.forEach((pt, i) => {
+    const p = px(pt.lat, pt.lon);
+    ctx.save();
+    ctx.fillStyle = '#22c55e';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#0a0f1e';
+    ctx.font = 'bold 8px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(i + 1, p.x, p.y);
+    ctx.restore();
+  });
+
+  // ── Draw station dot ──
+  if (run.station) {
+    const p = px(run.station.lat, run.station.lon);
+    ctx.save();
+    ctx.shadowColor = '#f59e0b';
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = '#f59e0b';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#0a0f1e';
+    ctx.font = 'bold 9px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('S', p.x, p.y);
+    ctx.fillStyle = '#fcd34d';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('Station', p.x, p.y - 13);
+    ctx.restore();
+  }
+}
+
+// ─── Format run as text ────────────────────────────────────────────────────────
+function formatRun(r, n) {
+  const d = new Date(r.timestamp).toLocaleString();
+  let t = `===== Run #${n} — ${d} =====\n`;
+  if (r.station) t += `\nStation:\n  ${r.station.lat.toFixed(6)}, ${r.station.lon.toFixed(6)}  (±${r.station.acc}m)\n`;
+  if (r.passes.length) {
+    t += `\nPass Points (${r.passes.length}):\n`;
+    r.passes.forEach((p, i) => { t += `  Pass ${i + 1}: ${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}  (±${p.acc}m)\n`; });
+  }
+  if (r.corners.length) {
+    const lbl = ['NW','NE','SE','SW'];
+    t += `\nPond Corners (${r.corners.length}):\n`;
+    r.corners.forEach((c, i) => { t += `  ${lbl[i] || i + 1}: ${c.lat.toFixed(6)}, ${c.lon.toFixed(6)}  (±${c.acc}m)\n`; });
+  }
+  return t;
+}
+
+// ─── Done & Copy ───────────────────────────────────────────────────────────────
+async function finishRun() {
+  if (!run.station && run.passes.length === 0) {
+    setStatus('Nothing to save — mark at least a station or pass point first.', 'error');
+    return;
+  }
+  const saved = { ...run, station: run.station ? {...run.station} : null, passes: run.passes.map(p=>({...p})), corners: run.corners.map(c=>({...c})), timestamp: Date.now() };
+
+  // save to cookie history
+  let hist = loadHistory();
+  hist.unshift(saved);
+  hist = hist.slice(0, 2);
+  saveHistory(hist);
+  document.getElementById('hist-count').textContent = hist.length;
+
+  const text = formatRun(saved, hist.length);
+
+  try {
+    await navigator.clipboard.writeText(text);
+    setStatus('Copied to clipboard! Paste into your notes app. Ready for next run.', 'ok');
+  } catch {
+    // fallback
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    setStatus('Copied (fallback)! Paste into your notes app.', 'ok');
+  }
+}
+
+// ─── Clear run ─────────────────────────────────────────────────────────────────
+function clearRun() {
+  run = { station: null, passes: [], corners: [] };
+  renderStation(); renderPasses(); renderCorners();
+  document.getElementById('btn-corner').disabled = false;
+  document.getElementById('btn-corner').style.opacity = '';
+  setStatus('Cleared. Tap <strong>Mark Station</strong> to start a new run.', 'info');
+  drawMap();
+}
+
+// ─── Cookie history ────────────────────────────────────────────────────────────
+function loadHistory() {
+  try {
+    const c = document.cookie.split(';').find(x => x.trim().startsWith('ct_hist='));
+    if (c) return JSON.parse(decodeURIComponent(c.split('=').slice(1).join('=')));
+  } catch {}
+  return [];
+}
+
+function saveHistory(hist) {
+  const exp = new Date(); exp.setFullYear(exp.getFullYear() + 1);
+  document.cookie = `ct_hist=${encodeURIComponent(JSON.stringify(hist))};expires=${exp.toUTCString()};path=/;SameSite=Lax`;
+}
+
+function renderHistory() {
+  const hist = loadHistory();
+  const el = document.getElementById('history-list');
+  if (!hist.length) {
+    el.innerHTML = '<div class="empty-state"><span class="icon">📋</span>No saved runs yet.<br>Complete a run on the Track tab to see it here.</div>';
+    return;
+  }
+  el.innerHTML = hist.map((r, i) => {
+    const text = formatRun(r, i + 1);
+    return `
+      <div class="history-run">
+        <div class="history-run-header">
+          <div class="history-run-title">Run #${i + 1} — ${new Date(r.timestamp).toLocaleDateString()}</div>
+          <button class="btn btn-blue btn-sm" onclick="copyHistRun(${i})">Copy</button>
+        </div>
+        <pre class="history-run-text">${text}</pre>
+      </div>
+    `;
+  }).join('');
+}
+
+function copyHistRun(i) {
+  const hist = loadHistory();
+  const text = formatRun(hist[i], i + 1);
+  navigator.clipboard.writeText(text).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+  });
+}
+
+function clearHistory() {
+  saveHistory([]);
+  document.getElementById('hist-count').textContent = '0';
+  renderHistory();
+}
+
+// ─── Init ──────────────────────────────────────────────────────────────────────
+document.getElementById('hist-count').textContent = loadHistory().length;
+drawMap();
+window.addEventListener('resize', drawMap);
+</script>
+</body>
+</html>
